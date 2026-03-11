@@ -1,4 +1,8 @@
 # 基于moveit的路径规划实现自动规划手指移动的功能
+> 通过配置不同手型,发送请求到服务端,调用moveit的路径规划算法,实现自动规划手指移动的功能,并通过底层驱动接口控制灵巧手执行相应动作。
+
+> 该实现中,将moveit在rviz的本地插件(目标姿态)设置为透明,仅支持通过发送服务请求的方式进行路径规划,不支持在rviz中直接设置目标姿态进行路径规划(修改后可以实现)。
+
 ---
 class_doc中为公开课讲义文件，包含了每一章的内容介绍和代码实现细节，供同学们参考学习。
 ## 课程文件导览
@@ -33,6 +37,8 @@ sudo chmod 666 /dev/ttyACM0
 
 - hand_test_bag 测试功能包,包含测试节点和launch文件(robot_state_publisher_gui控制灵巧手)
 
+- hand_shape 手型库功能包,包含不同手型的描述文件和moveit配置文件
+
 ## 启动测试功能包
 ```bash
 ros2 launch hand_test_bag hand_test.launch.py
@@ -41,7 +47,16 @@ ros2 launch hand_test_bag hand_test.launch.py
 ```bash
 ros2 launch moveit_setup_assistant setup_assistant.launch.py
 ```
-## 启动moveit控制节点
+## 启动moveit控制节点(实现节点)
 ```bash
 ros2 launch hand_control hand_control.launch.py
+```
+## 规划不同手型
+<!-- ```bash
+ros2 param set /hand_shape current_shape default  # 默认手型
+ros2 param set /hand_shape current_shape catch    # 抓握
+ros2 param set /hand_shape current_shape joke     # 竖中指
+``` -->
+```bash
+ros2 service call /hand_shape/set_shape omnihand_node_msgs/srv/SetHandShape "{shape_name: catch}"
 ```

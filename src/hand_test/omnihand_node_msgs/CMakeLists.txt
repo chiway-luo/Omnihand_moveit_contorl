@@ -19,8 +19,13 @@ set(msg_files
   "msg/TemperatureReport.msg"
 )
 
+set(srv_files
+  "srv/SetHandShape.srv"
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
+  ${srv_files}
   DEPENDENCIES builtin_interfaces std_msgs
 )
 

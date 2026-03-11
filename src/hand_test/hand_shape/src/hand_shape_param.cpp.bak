@@ -4,11 +4,9 @@
 #include <mutex>
 #include <atomic>
 #include <thread>
-#include <condition_variable>
-#include "omnihand_node_msgs/srv/set_hand_shape.hpp"
 
 /*
-    需求:通过接收客户端的请求来动态加载param参数文件,实现向moveit控制节点发送机械手的目标姿态,
+    需求:通过动态加载param参数文件,实现向moveit控制节点发送机械手的目标姿态,
         并通过moveit规划出机械手的运动轨迹,
         最终通过底层驱动节点控制机械手执行规划好的轨迹
     流程:
@@ -64,36 +62,9 @@ public:
             }
         }
 
-        // 创建 service，接收手型切换请求
-        // 用法: ros2 service call /hand_shape/set_shape omnihand_node_msgs/srv/SetHandShape "{shape_name: catch}"
-        service_ = this->create_service<omnihand_node_msgs::srv::SetHandShape>(
-            "/hand_shape/set_shape",
-            [this](const omnihand_node_msgs::srv::SetHandShape::Request::SharedPtr request,
-                   omnihand_node_msgs::srv::SetHandShape::Response::SharedPtr response) {
-                // service 回调在 spin 线程中，不能直接调 MoveIt（会死锁）
-                // 设置标志，由主线程执行，等待执行结果返回给客户端
-                {
-                    std::lock_guard<std::mutex> lock(mutex_);
-                    pending_shape_ = request->shape_name;
-                    shape_changed_ = true;
-                    result_ready_ = false;
-                }
-                cv_.notify_one();
-                RCLCPP_INFO(this->get_logger(), "收到手型请求: %s", request->shape_name.c_str());
-
-                // 等待主线程执行完成（最长等待 30 秒）
-                std::unique_lock<std::mutex> lock(mutex_);
-                if (cv_result_.wait_for(lock, std::chrono::seconds(30),
-                        [this]{ return result_ready_; })) {
-                    response->success = result_success_;
-                    response->message = result_message_;
-                } else {
-                    response->success = false;
-                    response->message = "执行超时";
-                }
-            }
-        );
-
+        // 注册参数变更回调 —— 当 current_shape 被 ros2 param set 修改时触发
+        param_cb_handle_ = this->add_on_set_parameters_callback(
+            std::bind(&HandShape::on_parameters_changed, this, _1));
     }
 
     // 在 spin 线程启动后调用, 初始化 MoveGroupInterface 并进入主循环
@@ -107,48 +78,68 @@ public:
         move_group_->setMaxAccelerationScalingFactor(1.0);// 限制加速度, 避免机械手动作过快
         RCLCPP_INFO(this->get_logger(), "MoveGroupInterface 连接成功");
 
-        // 主循环：等待 service 请求，执行 MoveIt 规划
+        // 启动时不自动执行手型, 等待用户通过 ros2 param set 触发
+        // {
+        //     std::lock_guard<std::mutex> lock(mutex_);
+        //     pending_shape_ = this->get_parameter("current_shape").as_string();
+        //     shape_changed_ = true;
+        // }
+
+        // 主循环：检测参数变更并执行 MoveIt 规划
+        rclcpp::Rate rate(10);  // 10Hz 轮询
         while (rclcpp::ok()) {
             std::string shape_name;
             {
-                std::unique_lock<std::mutex> lock(mutex_);
-                cv_.wait(lock, [this]{ return shape_changed_ || !rclcpp::ok(); });
-                if (!rclcpp::ok()) break;
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (!shape_changed_) {
+                    rate.sleep();
+                    continue;
+                }
                 shape_name = pending_shape_;
                 shape_changed_ = false;
             }
-            auto [success, message] = execute_shape(shape_name);
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                result_success_ = success;
-                result_message_ = message;
-                result_ready_ = true;
-            }
-            cv_result_.notify_one();
+            execute_shape(shape_name);
+            rate.sleep();
         }
     }
 
 private:
-    rclcpp::Service<omnihand_node_msgs::srv::SetHandShape>::SharedPtr service_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;// MoveIt 规划接口
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;// 参数变更回调句柄, 用于监听 current_shape 变化
     std::mutex mutex_;
-    std::condition_variable cv_;           // 通知主线程有新请求
-    std::condition_variable cv_result_;    // 通知 service 回调执行完成
     std::string pending_shape_;//待执行的手型名称
     bool shape_changed_ = false;//是否有新的手型需要执行
-    bool result_ready_ = false;
-    bool result_success_ = false;
-    std::string result_message_;
 
-    // ---- 执行手型切换，返回 {成功?, 信息} ----
-    std::pair<bool, std::string> execute_shape(const std::string & shape_name)
+    // ---- 参数变更回调 ----
+    // 注意：此回调在 spin 线程中执行, 不能在此直接调用 MoveIt (会死锁)
+    // 所以仅记录目标, 由 run_moveit_loop 主线程执行
+    rcl_interfaces::msg::SetParametersResult on_parameters_changed(
+        const std::vector<rclcpp::Parameter> & parameters)
+    {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+
+        for (const auto & param : parameters) {
+            if (param.get_name() == "current_shape") {
+                std::lock_guard<std::mutex> lock(mutex_);
+                pending_shape_ = param.as_string();
+                shape_changed_ = true;
+                RCLCPP_INFO(this->get_logger(),
+                    "检测到参数变更: current_shape -> \"%s\"", pending_shape_.c_str());
+            }
+        }
+        return result;
+    }
+
+    // ---- 执行手型切换 ----
+    void execute_shape(const std::string & shape_name)
     {
         // 1. 从参数服务器读取预设角度 (presets.<shape_name>)
         std::string param_name = "presets." + shape_name;
         if (!this->has_parameter(param_name)) {
             RCLCPP_ERROR(this->get_logger(),
                 "未找到预设手型参数: %s  (可用预设请查看 YAML 文件)", param_name.c_str());
-            return {false, "未找到预设: " + shape_name};
+            return;
         }
 
         std::vector<double> angles_deg;//预设角度(单位:度)
@@ -156,14 +147,14 @@ private:
             angles_deg = this->get_parameter(param_name).as_double_array();
         } catch (const rclcpp::ParameterTypeException & e) {
             RCLCPP_ERROR(this->get_logger(), "参数 %s 类型错误: %s", param_name.c_str(), e.what());
-            return {false, "参数类型错误"};
+            return;
         }
 
         if (angles_deg.size() != ACTIVE_JOINT_NAMES.size()) {//如果预设角度数量不匹配, 则报错并返回
             RCLCPP_ERROR(this->get_logger(),
                 "预设 \"%s\" 角度数量 = %zu, 应为 %zu",
                 shape_name.c_str(), angles_deg.size(), ACTIVE_JOINT_NAMES.size());
-            return {false, "角度数量不匹配"};
+            return;
         }
 
         // 2. 构造关节目标 (度 → 弧度)
@@ -172,12 +163,14 @@ private:
         for (size_t i = 0; i < ACTIVE_JOINT_NAMES.size(); ++i) {
             double rad = angles_deg[i] * M_PI / 180.0;//将角度转换为弧度
             joint_target[ACTIVE_JOINT_NAMES[i]] = rad;
+            // RCLCPP_INFO(this->get_logger(), "  %s: %.1f° (%.4f rad)",
+            //     ACTIVE_JOINT_NAMES[i].c_str(), angles_deg[i], rad);
         }
 
         // 3. 设置 MoveIt 关节目标
         if (!move_group_->setJointValueTarget(joint_target)) {
             RCLCPP_ERROR(this->get_logger(), "setJointValueTarget 失败, 目标可能超出关节限制");
-            return {false, "目标超出关节限制"};
+            return;
         }
 
         // 4. 规划
@@ -188,18 +181,19 @@ private:
 
         if (!plan_ok) {
             RCLCPP_ERROR(this->get_logger(), "手型 \"%s\" 轨迹规划失败!", shape_name.c_str());
-            return {false, "轨迹规划失败"};
+            return;
         }
 
         // 5. 执行
+        // RCLCPP_INFO(this->get_logger(), "规划成功 (轨迹点数: %zu), 正在执行...",
+        //     plan.trajectory_.joint_trajectory.points.size());
+
         auto exec_result = move_group_->execute(plan);
         if (exec_result == moveit::core::MoveItErrorCode::SUCCESS) {
             RCLCPP_INFO(this->get_logger(), "手型 \"%s\" 执行完成 ✓", shape_name.c_str());
-            return {true, "执行完成"};
         } else {
             RCLCPP_ERROR(this->get_logger(), "手型 \"%s\" 执行失败 (错误码: %d)",
                 shape_name.c_str(), exec_result.val);
-            return {false, "执行失败，错误码: " + std::to_string(exec_result.val)};
         }
     }
 };

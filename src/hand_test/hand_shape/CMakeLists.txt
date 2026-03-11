@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
+find_package(omnihand_node_msgs REQUIRED)
 
 add_executable(hand_shape src/hand_shape.cpp)
 target_include_directories(hand_shape PUBLIC
@@ -19,6 +20,7 @@ ament_target_dependencies(
   hand_shape
   "rclcpp"
   "moveit_ros_planning_interface"
+  "omnihand_node_msgs"
 )
 
 install(TARGETS hand_shape
