@@ -8,8 +8,7 @@ class_doc中为公开课讲义文件，包含了每一章的内容介绍和代�
 
 [第三章 测试功能包编写](class_doc/第三章.md)
 ## 示例视频
-<video src="class_doc/example.mp4" controls="controls" width="600">
-  您的浏览器不支持视频播放
+<video src="https://github.com/user-attachments/assets/ac17ca8b-bb46-4fef-8a15-a6e34bdc93ea" controls="controls" width="600">
 </video>
 
 ## 配置依赖
