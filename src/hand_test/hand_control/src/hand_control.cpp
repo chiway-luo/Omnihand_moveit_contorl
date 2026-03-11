@@ -53,15 +53,15 @@ public:
             std::chrono::milliseconds(500),
             std::bind(&HandControl::send_control_mode, this));
 
-        // 发布电机角度指令（转发 MoveIt 轨迹到真实驱动）
+        // 发布电机角度指令（转发 MoveIt 轨迹到真实驱动）10关节
         pub_motor_angle_ = this->create_publisher<omnihand_node_msgs::msg::MotorAngle>(
             "/agihand/omnihand/left/motor_angle_cmd", 10);
 
-        // 发布真实关节状态给 MoveIt + robot_state_publisher
+        // 发布真实关节状态给 MoveIt + robot_state_publisher 16关节
         pub_joint_states_ = this->create_publisher<sensor_msgs::msg::JointState>(
             "/joint_states", 10);
 
-        // 订阅灵巧手驱动反馈（真实关节角度 100Hz）
+        // 订阅灵巧手驱动反馈（真实关节角度 100Hz） 10关节
         sub_motor_angle_ = this->create_subscription<omnihand_node_msgs::msg::MotorAngle>(
             "/agihand/omnihand/left/motor_angle", 10,
             std::bind(&HandControl::motor_angle_callback, this, _1));
@@ -76,25 +76,28 @@ public:
         timer_republish_ = this->create_wall_timer(
             std::chrono::milliseconds(20),
             std::bind(&HandControl::republish_joint_states, this));
+
+        
     }
 
 private:
-    std::unordered_map<std::string, int> joint_index_map_;
-    std::vector<std::string> all_joint_names_;
-    rclcpp::Publisher<omnihand_node_msgs::msg::ControlMode>::SharedPtr pub_control_mode_;
-    rclcpp::Publisher<omnihand_node_msgs::msg::MotorAngle>::SharedPtr pub_motor_angle_;
-    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_joint_states_;
-    rclcpp::Subscription<omnihand_node_msgs::msg::MotorAngle>::SharedPtr sub_motor_angle_;
-    rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr sub_controller_states_;
-    rclcpp::TimerBase::SharedPtr timer_republish_;
-    rclcpp::TimerBase::SharedPtr timer_control_mode_;
-    int control_mode_send_count_ = 0;
-    std::vector<double> cached_positions_;
-    bool has_joint_data_ = false;
+    std::unordered_map<std::string, int> joint_index_map_;// MoveIt 关节名 → MotorAngle.angles[] 索引
+    std::vector<std::string> all_joint_names_;// 全部16个关节名（10主动 + 6 mimic）
+    rclcpp::Publisher<omnihand_node_msgs::msg::ControlMode>::SharedPtr pub_control_mode_;// 发布控制模式
+    rclcpp::Publisher<omnihand_node_msgs::msg::MotorAngle>::SharedPtr pub_motor_angle_;//发布电机角度指令
+    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_joint_states_;//发布关节状态
+    rclcpp::Subscription<omnihand_node_msgs::msg::MotorAngle>::SharedPtr sub_motor_angle_;//订阅驱动反馈的关节角度
+    rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr sub_controller_states_;//订阅 MoveIt fake controller 输出的轨迹指令
+    rclcpp::TimerBase::SharedPtr timer_republish_;// 定时器：周期性重发 /joint_states，防止驱动断更导致 MoveIt 超时
+    rclcpp::TimerBase::SharedPtr timer_control_mode_;// 定时器：周期性发送控制模式，确保驱动收到
+    int control_mode_send_count_ = 0;// 已发送控制模式的次数
+    std::vector<double> cached_positions_;//最近一次收到的关节状态
+    bool has_joint_data_ = false;//是否已收到过关节状态数据
     rclcpp::Time last_motor_time_;  // 最近一次收到驱动反馈的时间
     std::vector<double> last_cmd_angles_ = std::vector<double>(10, 0.0);  // 上次下发的指令角度
     bool cmd_initialized_ = false;  // 是否已用真实角度初始化指令基准
     bool driver_connected_ = false;  // 驱动是否在线（收到过反馈且未超时）
+
 
     // 定时发送控制模式，等订阅者连接后确保驱动收到
     void send_control_mode() {
@@ -105,6 +108,7 @@ private:
         RCLCPP_INFO(this->get_logger(), "发送控制模式 (位置控制), 第 %d 次", control_mode_send_count_);
 
         // 订阅者已连接且已发送足够次数后停止
+        //get_subscription_count() 只能反映当前订阅者数量，无法区分是否已连接过，所以设置发送次数阈值确保驱动至少收到几次
         if (pub_control_mode_->get_subscription_count() > 0 && control_mode_send_count_ >= 3) {
             RCLCPP_INFO(this->get_logger(), "驱动已连接，控制模式设置完成");
             timer_control_mode_->cancel();
@@ -112,7 +116,7 @@ private:
         // 最多重试 20 次（10 秒）防止无限重发
         if (control_mode_send_count_ >= 20) {
             RCLCPP_WARN(this->get_logger(), "控制模式发送已达上限，驱动可能未连接");
-            timer_control_mode_->cancel();
+            timer_control_mode_->cancel();//停止发送控制模式，避免无意义的重试
         }
     }
 
@@ -131,7 +135,7 @@ private:
         double pinky_abad = msg->angles[8];
         double pinky_pip  = msg->angles[9];
 
-        // 线性 mimic 计算被动关节（SDK 多项式最小二乘线性拟合）
+        //线性 mimic 计算被动关节（SDK 多项式最小二乘线性拟合）
         double thumb_pip = 1.33 * thumb_mcp;
         double thumb_dip = 1.42 * thumb_mcp;
         double index_dip  = 1.29 * index_pip;
@@ -139,9 +143,14 @@ private:
         double ring_dip   = 1.29 * ring_pip;
         double pinky_dip  = 1.29 * pinky_pip;
 
-        sensor_msgs::msg::JointState js;
+        // 发布 /joint_states，供 MoveIt 和 rviz 使用
+        static sensor_msgs::msg::JointState js;//发布给 MoveIt 的关节状态消息(只分配一次内存)
+        if (js.name.empty()) {
+            js.name = all_joint_names_;
+            js.position.resize(all_joint_names_.size(), 0.0);
+        }
         js.header.stamp = this->get_clock()->now();
-        js.name = all_joint_names_;
+
         js.position = {
             thumb_roll, thumb_abad, thumb_mcp, thumb_pip, thumb_dip,
             index_abad, index_pip, index_dip,
@@ -149,6 +158,23 @@ private:
             ring_abad, ring_pip, ring_dip,
             pinky_abad, pinky_pip, pinky_dip,
         };
+
+        // js.position[0] = msg->angles[0];
+        // js.position[1] = msg->angles[1];
+        // js.position[2] = msg->angles[2];
+        // js.position[3] = msg->angles[2] * 1.33; // thumb_pip
+        // js.position[4] = msg->angles[2] * 1.42; // thumb_dip
+        // js.position[5] = msg->angles[3];
+        // js.position[6] = msg->angles[4];
+        // js.position[7] = msg->angles[4] * 1.29; // index_dip
+        // js.position[8] = msg->angles[5];
+        // js.position[9] = msg->angles[5] * 1.29; // middle_dip
+        // js.position[10] = msg->angles[6];
+        // js.position[11] = msg->angles[7];
+        // js.position[12] = msg->angles[7] * 1.29; // ring_dip
+        // js.position[13] = msg->angles[8];
+        // js.position[14] = msg->angles[9];
+        // js.position[15] = msg->angles[9] * 1.29; // pinky_dip
 
         // 缓存最新关节状态，供定时器重发
         cached_positions_ = js.position;
@@ -178,9 +204,9 @@ private:
             }
         }
 
-        sensor_msgs::msg::JointState js;
+        static sensor_msgs::msg::JointState js;
         js.header.stamp = this->get_clock()->now();
-        js.name = all_joint_names_;
+        if(js.name.empty()) js.name = all_joint_names_;
         js.position = cached_positions_;
         pub_joint_states_->publish(js);
     }

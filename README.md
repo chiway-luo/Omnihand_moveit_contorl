@@ -60,3 +60,5 @@ ros2 param set /hand_shape current_shape joke     # 竖中指
 ```bash
 ros2 service call /hand_shape/set_shape omnihand_node_msgs/srv/SetHandShape "{shape_name: catch}"
 ```
+
+> 我将退学在家,专心研究这个代码是怎么写的,感谢copilot && claude && gpt 的帮助,让我能在短时间内完成这个功能包的编写,并且在这个过程中学到了很多ROS2和moveit的知识,非常感谢他们的帮助和支持!
