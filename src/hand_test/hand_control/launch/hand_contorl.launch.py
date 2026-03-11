@@ -39,7 +39,7 @@ def generate_launch_description():
     if os.path.exists(static_tf_launch):
         ld.add_action(
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(static_tf_launch)
+                launch_description_source=PythonLaunchDescriptionSource(static_tf_launch)
             )
         )
 
@@ -49,7 +49,7 @@ def generate_launch_description():
     # 这样RViz和MoveIt才能正确显示机器人的实时姿态
     ld.add_action(
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
+            launch_description_source=PythonLaunchDescriptionSource(
                 os.path.join(hand_moveit_dir, "launch", "rsp.launch.py")
             )
         )
@@ -111,7 +111,7 @@ def generate_launch_description():
     # 并通过action接口将轨迹发送给对应的JointTrajectoryController执行
     ld.add_action(
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
+            launch_description_source=PythonLaunchDescriptionSource(
                 os.path.join(hand_moveit_dir, "launch", "move_group.launch.py")
             )
         )
@@ -123,18 +123,18 @@ def generate_launch_description():
     # 加载hand_moveit中预配置的rviz配置文件
     ld.add_action(
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
+            launch_description_source=PythonLaunchDescriptionSource(
                 os.path.join(hand_moveit_dir, "launch", "moveit_rviz.launch.py")
             )
         )
     )
 
     # ========== 7. 灵巧手底层驱动节点 ==========
-    # 启动智元OmniHand SDK提供的驱动节点
+    # 启动驱动节点
     # 负责通过串口与灵巧手硬件通信，接收电机控制指令并反馈真实关节角度
     # 订阅：/agihand/omnihand/left/motor_angle_cmd（电机角度指令）
     # 订阅：/agihand/omnihand/left/control_mode_cmd（电机控制模式）
-    # 发布：真实关节状态（由hand_control节点转发到/joint_states）
+    # 发布：真实关节状态（由hand_control节点计算并发布到/joint_states）
     ld.add_action(
         Node(
             package="omnihand_node",
