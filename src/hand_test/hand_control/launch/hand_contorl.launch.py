@@ -61,6 +61,9 @@ def generate_launch_description():
     )
 
     # ---------- 4. 启动 controller spawners ----------
+    # joint_state_broadcaster 必须保留：它将 fake controller 插值输出发布到
+    # /controller_joint_states（由 ros2_control_node 的 remapping 生效），
+    # hand_control_node 订阅该 topic 并转发到真实驱动。
     controller_names = [
         "thumb_controller",
         "index_controller",

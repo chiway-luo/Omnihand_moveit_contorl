@@ -140,7 +140,7 @@
     <parent link="L_thumb_mcp"/>
     <child link="L_thumb_pip"/>
     <axis xyz="1 0 0"/>
-    <limit effort="1.764" lower="-1.1384310735347046" upper="0" velocity="0.308"/>
+    <limit effort="1.764" lower="-1.14" upper="0" velocity="0.308"/>
     <mimic joint="L_thumb_mcp_joint" multiplier="1.33" offset="0"/>
   </joint>
   <link name="L_thumb_pip">
@@ -168,8 +168,8 @@
     <parent link="L_thumb_pip"/>
     <child link="L_thumb_dip"/>
     <axis xyz="1 0 0"/>
-    <limit effort="1.764" lower="-1.1344640137963142" upper="0" velocity="0.308"/>
-    <mimic joint="L_thumb_mcp_joint" multiplier="1.3" offset="0"/>
+    <limit effort="1.764" lower="-1.22" upper="0" velocity="0.308"/>
+    <mimic joint="L_thumb_mcp_joint" multiplier="1.42" offset="0" />
   </joint>
   <link name="L_thumb_dip">
     <visual>
@@ -261,8 +261,8 @@
     <parent link="L_index_pip"/>
     <child link="L_index_dip"/>
     <axis xyz="0 1 0"/>
-    <limit effort="1.764" lower="0" upper="1.8325957145940461" velocity="0.308"/>
-    <mimic joint="L_index_pip_joint" multiplier="1.097" offset="0"/>
+    <limit effort="1.764" lower="0" upper="2.03" velocity="0.308"/>
+    <mimic joint="L_index_pip_joint" multiplier="1.29" offset="0"/>
   </joint>
   <link name="L_index_dip">
     <visual>
@@ -351,8 +351,8 @@
     <parent link="L_middle_pip"/>
     <child link="L_middle_dip"/>
     <axis xyz="0 1 0"/>
-    <limit effort="1.764" lower="0" upper="1.8325957145940461" velocity="0.308"/>
-    <mimic joint="L_middle_pip_joint" multiplier="1.097" offset="0"/>
+    <limit effort="1.764" lower="0" upper="2.03" velocity="0.308"/>
+    <mimic joint="L_middle_pip_joint" multiplier="1.29" offset="0"/>
   </joint>
   <link name="L_middle_dip">
     <visual>
@@ -443,8 +443,8 @@
     <parent link="L_ring_pip"/>
     <child link="L_ring_dip"/>
     <axis xyz="0 1 0"/>
-    <limit effort="1.764" lower="0" upper="1.8325957145940461" velocity="0.308"/>
-    <mimic joint="L_ring_pip_joint" multiplier="1.097" offset="0"/>
+    <limit effort="1.764" lower="0" upper="2.03" velocity="0.308"/>
+    <mimic joint="L_ring_pip_joint" multiplier="1.29" offset="0"/>
   </joint>
   <link name="L_ring_dip">
     <visual>
@@ -535,8 +535,8 @@
     <parent link="L_pinky_pip"/>
     <child link="L_pinky_dip"/>
     <axis xyz="0 1 0"/>
-    <limit effort="1.764" lower="0" upper="1.8325957145940461" velocity="0.308"/>
-    <mimic joint="L_pinky_pip_joint" multiplier="1.097" offset="0"/>
+    <limit effort="1.764" lower="0" upper="2.03" velocity="0.308"/>
+    <mimic joint="L_pinky_pip_joint" multiplier="1.29" offset="0"/>
   </joint>
   <link name="L_pinky_dip">
     <visual>

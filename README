@@ -5,7 +5,10 @@
 ```bash
 sudo apt install ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-ros-control ros-${ROS_DISTRO}-ros-controllers
 ```
-
+## 安装灵巧手
+```
+sudo chmod 666 /dev/ttyACM0
+```
 ## 功能包说明
 - hand_description 描述文件
 

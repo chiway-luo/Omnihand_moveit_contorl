@@ -2,6 +2,7 @@
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "omnihand_node_msgs/msg/motor_angle.hpp"
 #include "omnihand_node_msgs/msg/control_mode.hpp"
+#include <cmath>
 /*
     工作流程:
     1. 订阅灵巧手驱动反馈 /agihand/omnihand/left/motor_angle (100Hz, 真实关节角度)
@@ -46,9 +47,11 @@ public:
         // 发布控制模式（全部设为位置控制 = 0）
         pub_control_mode_ = this->create_publisher<omnihand_node_msgs::msg::ControlMode>(
             "/agihand/omnihand/left/control_mode_cmd", 10);
-        auto mode_msg = omnihand_node_msgs::msg::ControlMode();
-        mode_msg.modes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        pub_control_mode_->publish(mode_msg);
+
+        // 延迟重复发送控制模式，等待驱动订阅者连接后确保收到
+        timer_control_mode_ = this->create_wall_timer(
+            std::chrono::milliseconds(500),
+            std::bind(&HandControl::send_control_mode, this));
 
         // 发布电机角度指令（转发 MoveIt 轨迹到真实驱动）
         pub_motor_angle_ = this->create_publisher<omnihand_node_msgs::msg::MotorAngle>(
@@ -67,6 +70,12 @@ public:
         sub_controller_states_ = this->create_subscription<sensor_msgs::msg::JointState>(
             "/controller_joint_states", 10,
             std::bind(&HandControl::controller_states_callback, this, _1));
+
+        // 定时器：50Hz 周期性重发 /joint_states，防止驱动断更导致 MoveIt 超时
+        cached_positions_.resize(all_joint_names_.size(), 0.0);
+        timer_republish_ = this->create_wall_timer(
+            std::chrono::milliseconds(20),
+            std::bind(&HandControl::republish_joint_states, this));
     }
 
 private:
@@ -77,6 +86,35 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_joint_states_;
     rclcpp::Subscription<omnihand_node_msgs::msg::MotorAngle>::SharedPtr sub_motor_angle_;
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr sub_controller_states_;
+    rclcpp::TimerBase::SharedPtr timer_republish_;
+    rclcpp::TimerBase::SharedPtr timer_control_mode_;
+    int control_mode_send_count_ = 0;
+    std::vector<double> cached_positions_;
+    bool has_joint_data_ = false;
+    rclcpp::Time last_motor_time_;  // 最近一次收到驱动反馈的时间
+    std::vector<double> last_cmd_angles_ = std::vector<double>(10, 0.0);  // 上次下发的指令角度
+    bool cmd_initialized_ = false;  // 是否已用真实角度初始化指令基准
+    bool driver_connected_ = false;  // 驱动是否在线（收到过反馈且未超时）
+
+    // 定时发送控制模式，等订阅者连接后确保驱动收到
+    void send_control_mode() {
+        auto mode_msg = omnihand_node_msgs::msg::ControlMode();
+        mode_msg.modes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        pub_control_mode_->publish(mode_msg);
+        control_mode_send_count_++;
+        RCLCPP_INFO(this->get_logger(), "发送控制模式 (位置控制), 第 %d 次", control_mode_send_count_);
+
+        // 订阅者已连接且已发送足够次数后停止
+        if (pub_control_mode_->get_subscription_count() > 0 && control_mode_send_count_ >= 3) {
+            RCLCPP_INFO(this->get_logger(), "驱动已连接，控制模式设置完成");
+            timer_control_mode_->cancel();
+        }
+        // 最多重试 20 次（10 秒）防止无限重发
+        if (control_mode_send_count_ >= 20) {
+            RCLCPP_WARN(this->get_logger(), "控制模式发送已达上限，驱动可能未连接");
+            timer_control_mode_->cancel();
+        }
+    }
 
     // 驱动反馈回调：真实关节 → /joint_states（MoveIt 碰撞检测 + TF 可视化）
     void motor_angle_callback(const omnihand_node_msgs::msg::MotorAngle::SharedPtr msg) {
@@ -93,13 +131,13 @@ private:
         double pinky_abad = msg->angles[8];
         double pinky_pip  = msg->angles[9];
 
-        // 计算 mimic 关节（与 URDF mimic 标签一致）
-        double thumb_pip = thumb_mcp * 1.33;
-        double thumb_dip = thumb_mcp * 1.30;
-        double index_dip = index_pip * 1.097;
-        double middle_dip = middle_pip * 1.097;
-        double ring_dip  = ring_pip * 1.097;
-        double pinky_dip = pinky_pip * 1.097;
+        // 线性 mimic 计算被动关节（SDK 多项式最小二乘线性拟合）
+        double thumb_pip = 1.33 * thumb_mcp;
+        double thumb_dip = 1.42 * thumb_mcp;
+        double index_dip  = 1.29 * index_pip;
+        double middle_dip = 1.29 * middle_pip;
+        double ring_dip   = 1.29 * ring_pip;
+        double pinky_dip  = 1.29 * pinky_pip;
 
         sensor_msgs::msg::JointState js;
         js.header.stamp = this->get_clock()->now();
@@ -112,10 +150,44 @@ private:
             pinky_abad, pinky_pip, pinky_dip,
         };
 
+        // 缓存最新关节状态，供定时器重发
+        cached_positions_ = js.position;
+        has_joint_data_ = true;
+        last_motor_time_ = this->get_clock()->now();
+
+        if (!driver_connected_) {
+            driver_connected_ = true;
+            RCLCPP_INFO(this->get_logger(), "灵巧手驱动已连接，开始接收反馈");
+        }
+
+        pub_joint_states_->publish(js);
+    }
+
+    // 定时重发 /joint_states，确保 MoveIt 始终看到带新时间戳的关节状态
+    // MoveIt 在执行轨迹前会验证关节状态时间戳，必须持续发布
+    void republish_joint_states() {
+        if (!has_joint_data_) return;
+
+        // 检测驱动是否掉线（3秒无反馈）
+        if (driver_connected_) {
+            auto now = this->get_clock()->now();
+            if ((now - last_motor_time_).seconds() > 3.0) {
+                driver_connected_ = false;
+                RCLCPP_ERROR(this->get_logger(),
+                    "灵巧手驱动掉线！已超过3秒无反馈。请检查USB连接并重启驱动。");
+            }
+        }
+
+        sensor_msgs::msg::JointState js;
+        js.header.stamp = this->get_clock()->now();
+        js.name = all_joint_names_;
+        js.position = cached_positions_;
         pub_joint_states_->publish(js);
     }
 
     // MoveIt 轨迹回调：将规划指令转发给真实驱动
+    // 只有当指令位置相对上次有变化时才转发，避免 idle 状态下
+    // joint_state_broadcaster 的 100Hz 静态重复消息冲击真实驱动
     void controller_states_callback(const sensor_msgs::msg::JointState::SharedPtr msg) {
         omnihand_node_msgs::msg::MotorAngle motor_msg;
         motor_msg.header.stamp = this->get_clock()->now();
@@ -129,6 +201,40 @@ private:
             }
         }
 
+        // 用第一帧真实驱动反馈初始化指令基准，防止启动时发零位命令
+        if (!cmd_initialized_) {
+            if (has_joint_data_) {
+                // 用真实关节角度（10个主动关节）作为初始基准
+                for (auto& [name, idx] : joint_index_map_) {
+                    last_cmd_angles_[idx] = cached_positions_[idx];
+                }
+                cmd_initialized_ = true;
+                RCLCPP_INFO(this->get_logger(), "指令基准已用真实角度初始化");
+            } else {
+                // 驱动反馈还没来，不转发任何指令
+                return;
+            }
+        }
+
+        // 检测指令是否有变化（阈值 0.001 rad ≈ 0.06°）
+        bool changed = false;
+        for (int i = 0; i < 10; ++i) {
+            if (std::abs(motor_msg.angles[i] - last_cmd_angles_[i]) > 0.001) {
+                changed = true;
+                break;
+            }
+        }
+
+        if (!changed) return;  // 静态重复消息，跳过
+
+        // 驱动掉线时不转发指令，防止MoveIt显示"成功"但真实手没动
+        if (!driver_connected_) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 3000,
+                "驱动已掉线，忽略轨迹指令。请重启灵巧手驱动。");
+            return;
+        }
+
+        last_cmd_angles_ = motor_msg.angles;
         pub_motor_angle_->publish(motor_msg);
     }
 };

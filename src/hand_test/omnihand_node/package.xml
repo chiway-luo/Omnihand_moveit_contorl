@@ -9,16 +9,18 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
-  <depend>rosidl_typesupport_cpp</depend>
-  <depend>rosidl_typesupport_fastrtps_cpp</depend>
-  <depend>rosidl_default_generators</depend>
-  <depend>omnihand_node_msgs</depend>
-  <depend>omni_hand_driver</depend>
+  <depend>builtin_interfaces</depend>
+<depend>omnihand_node_msgs</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
+
+  
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -134,7 +134,7 @@ void OmniHandProNode::motor_vel_callback(const omnihand_node_msgs::msg::MotorVel
 }
 
 void OmniHandProNode::motor_angle_callback(const omnihand_node_msgs::msg::MotorAngle::SharedPtr msg) {
-  RCLCPP_INFO(this->get_logger(), "Received motor angle command");
+//   RCLCPP_INFO(this->get_logger(), "Received motor angle command");
 
   std::vector<double> vec_angle;
   for (auto angle : msg->angles) {
