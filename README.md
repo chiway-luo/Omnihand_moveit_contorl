@@ -6,7 +6,7 @@ class_doc中为公开课讲义文件，包含了每一章的内容介绍和代�
 
 [第二章 灵巧手介绍](class_doc/第二章.md)
 
-<!-- [第三章 灵巧手moveit包构建](class_doc/第三章.md) -->
+[第三章 测试功能包编写](class_doc/第三章.md)
 ## 配置依赖
 安装moveit和ros_control相关的包
 ```bash
@@ -17,19 +17,27 @@ sudo apt install ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-ros-control ros-${RO
 sudo chmod 666 /dev/ttyACM0
 ```
 ## 功能包说明
+- omnihand_node 灵巧手底层驱动功能包,提供底层通信接口
+
+- omnihand_node_msgs 灵巧手底层驱动消息定义功能包,包含电机控制模式消息定义
+
 - hand_description 描述文件
 
 - hand_moveit moveit路径规划算法
 
-- hand_control 
+- hand_control 桥接moveit和底层驱动的控制节点
+
+- hand_test_bag 测试功能包,包含测试节点和launch文件(robot_state_publisher_gui控制灵巧手)
+
+## 启动测试功能包
+```bash
+ros2 launch hand_test_bag hand_test.launch.py
 ```
-目标角节点
-→ MoveGroupInterface 设 joint target 并 plan/execute
-→ MoveIt 把轨迹发到 /<controller_name>/follow_joint_trajectory
-→ joint_trajectory_controller
-→ 你的硬件驱动层把命令转换成下位机 API
-→ 下位机执行
-→ 当前关节状态回传
-→ /joint_states
-→ RViz 同步显示真实执行状态
+## 启动moveit配置助手
+```bash
+ros2 launch moveit_setup_assistant setup_assistant.launch.py
+```
+## 启动moveit控制节点
+```bash
+ros2 launch hand_control hand_control.launch.py
 ```
