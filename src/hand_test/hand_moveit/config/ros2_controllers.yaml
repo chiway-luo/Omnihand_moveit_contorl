@@ -23,11 +23,11 @@ controller_manager:
       type: joint_trajectory_controller/JointTrajectoryController
 
 
-    # hand_controller:
+    # hand_controller: # 这个控制器包含了所有手指的关节, 供 MoveIt 使用
     #   type: joint_trajectory_controller/JointTrajectoryController
 
 
-    joint_state_broadcaster:
+    joint_state_broadcaster: # 这个控制器负责发布关节状态, 供 MoveIt 和其他节点使用
       type: joint_state_broadcaster/JointStateBroadcaster
 
 thumb_controller:

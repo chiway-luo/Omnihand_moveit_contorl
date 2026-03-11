@@ -204,9 +204,15 @@ private:
         // 用第一帧真实驱动反馈初始化指令基准，防止启动时发零位命令
         if (!cmd_initialized_) {
             if (has_joint_data_) {
-                // 用真实关节角度（10个主动关节）作为初始基准
-                for (auto& [name, idx] : joint_index_map_) {
-                    last_cmd_angles_[idx] = cached_positions_[idx];
+                // 用真实关节角度初始化基准（通过关节名查找在 cached_positions_ 中的正确索引）
+                for (auto& [name, motor_idx] : joint_index_map_) {
+                    // 在 all_joint_names_ 中查找该关节名的实际索引
+                    for (size_t j = 0; j < all_joint_names_.size(); ++j) {
+                        if (all_joint_names_[j] == name) {
+                            last_cmd_angles_[motor_idx] = cached_positions_[j];
+                            break;
+                        }
+                    }
                 }
                 cmd_initialized_ = true;
                 RCLCPP_INFO(this->get_logger(), "指令基准已用真实角度初始化");
@@ -218,22 +224,30 @@ private:
 
         // 检测指令是否有变化（阈值 0.001 rad ≈ 0.06°）
         bool changed = false;
+        double max_diff = 0.0;
+        int max_diff_idx = -1;
         for (int i = 0; i < 10; ++i) {
-            if (std::abs(motor_msg.angles[i] - last_cmd_angles_[i]) > 0.001) {
+            double diff = std::abs(motor_msg.angles[i] - last_cmd_angles_[i]);
+            if (diff > max_diff) {
+                max_diff = diff;
+                max_diff_idx = i;
+            }
+            if (diff > 0.001) {
                 changed = true;
-                break;
             }
         }
-
-        if (!changed) return;  // 静态重复消息，跳过
-
+        if (!changed){
+            last_cmd_angles_ = motor_msg.angles; // 更新基准，防止后续微小变化被忽略
+            return;
+        }   // 静态重复消息，跳过
         // 驱动掉线时不转发指令，防止MoveIt显示"成功"但真实手没动
         if (!driver_connected_) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 3000,
                 "驱动已掉线，忽略轨迹指令。请重启灵巧手驱动。");
             return;
         }
-
+        // RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 500,
+        //     "转发轨迹指令 → 驱动 (最大变化: 关节[%d] %.4f rad)", max_diff_idx, max_diff);
         last_cmd_angles_ = motor_msg.angles;
         pub_motor_angle_->publish(motor_msg);
     }

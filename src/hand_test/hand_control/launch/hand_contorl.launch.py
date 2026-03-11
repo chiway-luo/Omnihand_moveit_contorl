@@ -158,5 +158,13 @@ def generate_launch_description():
         )
     )
 
+    # =========== 9. hand_shape 手型改变节点========
+    hand_shape_launch = IncludeLaunchDescription(
+        launch_description_source=PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory("hand_shape"), "launch", "hand_shape.launch.py")
+        )
+    )
+    ld.add_action(hand_shape_launch)
+
     return ld
 
