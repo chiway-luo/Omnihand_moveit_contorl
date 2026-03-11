@@ -7,6 +7,8 @@ class_doc中为公开课讲义文件，包含了每一章的内容介绍和代�
 [第二章 灵巧手介绍](class_doc/第二章.md)
 
 [第三章 测试功能包编写](class_doc/第三章.md)
+## 示例视频
+![](class_doc/example.mp4)
 ## 配置依赖
 安装moveit和ros_control相关的包
 ```bash
