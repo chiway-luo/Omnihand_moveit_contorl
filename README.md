@@ -8,7 +8,10 @@ class_doc中为公开课讲义文件，包含了每一章的内容介绍和代�
 
 [第三章 测试功能包编写](class_doc/第三章.md)
 ## 示例视频
-![](class_doc/example.mp4)
+<video src="class_doc/example.mp4" controls="controls" width="600">
+  您的浏览器不支持视频播放
+</video>
+
 ## 配置依赖
 安装moveit和ros_control相关的包
 ```bash
