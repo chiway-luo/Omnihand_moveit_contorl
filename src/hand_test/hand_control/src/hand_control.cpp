@@ -95,7 +95,7 @@ private:
     bool has_joint_data_ = false;//是否已收到过关节状态数据
     rclcpp::Time last_motor_time_;  // 最近一次收到驱动反馈的时间
     std::vector<double> last_cmd_angles_ = std::vector<double>(10, 0.0);  // 上次下发的指令角度
-    bool cmd_initialized_ = false;  // 是否已用真实角度初始化指令基准
+    bool gate_open_ = false;      // 门控：fake controller 与真实手对齐后才允许转发
     bool driver_connected_ = false;  // 驱动是否在线（收到过反馈且未超时）
 
 
@@ -227,25 +227,43 @@ private:
             }
         }
 
-        // 用第一帧真实驱动反馈初始化指令基准，防止启动时发零位命令
-        if (!cmd_initialized_) {
-            if (has_joint_data_) {
-                // 用真实关节角度初始化基准（通过关节名查找在 cached_positions_ 中的正确索引）
-                for (auto& [name, motor_idx] : joint_index_map_) {
-                    // 在 all_joint_names_ 中查找该关节名的实际索引
-                    for (size_t j = 0; j < all_joint_names_.size(); ++j) {
-                        if (all_joint_names_[j] == name) {
-                            last_cmd_angles_[motor_idx] = cached_positions_[j];
-                            break;
+        //判断是否已经收到过关节的状态数据,如果没有收到过,说明还没有建立起与驱动的通信,此时不转发指令,避免发送无效指令导致驱动异常
+        if (!has_joint_data_) {
+                last_cmd_angles_ = motor_msg.angles;
+                return;  // 驱动未连接，等待
+        }
+        // 门控机制：等待 fake controller 内部状态与真实手位置对齐后再开放转发
+        //
+        // 背景：mock_components/GenericSystem 初始状态为 0（initial_positions.yaml）。
+        // 当第一条 set_shape 指令下发时，joint_trajectory_controller 会在轨迹执行前
+        // 将 fake controller 从 0 插值过渡到轨迹起点（真实手位置 P）。
+        // 若将这段 0→P 的插值帧直接转发给驱动，真实手会先反向运动到 0 附近，
+        // 再回到 P、最终到目标 T，即大 角度抖动→执行命令 现象。
+        //
+        // 解决方案：检测 fake controller 状态是否已接近真实手位置，
+        // 只有对齐后（gate_open_ = true）才允许转发，从而跳过 0→P 插值阶段。
+        if (!gate_open_) {
+            
+            // 检查 fake controller 各关节是否已接近真实手位置（容差 0.1 rad ≈ 5.7°）
+            bool all_close = true;
+            for (const auto& [name, motor_idx] : joint_index_map_) {
+                for (size_t j = 0; j < all_joint_names_.size(); ++j) {
+                    if (all_joint_names_[j] == name) {
+                        if (std::abs(motor_msg.angles[motor_idx] - cached_positions_[j]) > 0.1) {
+                            all_close = false;
                         }
+                        break;
                     }
                 }
-                cmd_initialized_ = true;
-                RCLCPP_INFO(this->get_logger(), "指令基准已用真实角度初始化");
-            } else {
-                // 驱动反馈还没来，不转发任何指令
-                return;
+                if (!all_close) break;
             }
+            last_cmd_angles_ = motor_msg.angles;  // 始终跟踪，避免对齐后第一帧 diff 过大
+            if (all_close) {
+                gate_open_ = true;
+                RCLCPP_INFO(this->get_logger(),
+                    "[Gate] fake controller 已与真实手对齐，开始转发轨迹指令");
+            }
+            return;  // 对齐前本帧始终不转发
         }
 
         // 检测指令是否有变化（阈值 0.001 rad ≈ 0.06°）
