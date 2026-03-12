@@ -99,7 +99,7 @@ void UartRs485Interface::RecBuffParse(void) {
           case CMD_GET_ALL_ERROR_REPORT:
             // printf("get all error report response data ready! \n");
             getallerrorreport_result_.res_[0] = rec_buffer_[index + 6];
-            getallerrorreport_result_.res_[0] = rec_buffer_[index + 7];
+            getallerrorreport_result_.res_[1] = rec_buffer_[index + 7];
             getallerrorreport_feedback_state_ = 1;
             break;
 

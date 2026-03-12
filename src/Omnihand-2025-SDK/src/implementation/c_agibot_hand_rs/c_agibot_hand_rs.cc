@@ -385,7 +385,8 @@ JointMotorErrorReport AgibotHandRsO10::GetErrorReport(unsigned char joint_motor_
 }
 
 std::vector<JointMotorErrorReport> AgibotHandRsO10::GetAllErrorReport() {
-  std::vector<JointMotorErrorReport> all_errorreport;
+  std::vector<JointMotorErrorReport> all_errorreport(10);
+  memset(all_errorreport.data(), 0, sizeof(JointMotorErrorReport) * 10);
   uint8_t geterrorport_cmd[8] = {0};
   geterrorport_cmd[0] = 0xEE;
   geterrorport_cmd[1] = 0xAA;
@@ -403,13 +404,13 @@ std::vector<JointMotorErrorReport> AgibotHandRsO10::GetAllErrorReport() {
     if (handrs485_interface_->getallerrorreport_feedback_state_) {
       uint16_t check_res = handrs485_interface_->getallerrorreport_result_.res_[0] + handrs485_interface_->getallerrorreport_result_.res_[1] * 256;
       if (check_res > 0 && check_res < 11) {
-        all_errorreport[check_res - 10].stalled_ = check_res;
+        all_errorreport[check_res - 1].stalled_ = 1;
       } else if (check_res > 20 && check_res < 31) {
-        all_errorreport[check_res - 20].overheat_ = check_res;
+        all_errorreport[check_res - 21].overheat_ = 1;
       } else if (check_res > 40 && check_res < 51) {
-        all_errorreport[check_res - 40].over_current_ = check_res - 40;
+        all_errorreport[check_res - 41].over_current_ = 1;
       } else if (check_res > 60 && check_res < 71) {
-        all_errorreport[check_res - 60].motor_except_ = check_res - 60;
+        all_errorreport[check_res - 61].motor_except_ = 1;
       }
       // return handrs485_interface_->getallerrorreport_result_;
       handrs485_interface_->getallerrorreport_feedback_state_ = 0;
