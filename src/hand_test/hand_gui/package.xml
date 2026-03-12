@@ -4,7 +4,7 @@
   <name>hand_gui</name>
   <version>0.0.1</version>
   <description>GUI control for Omnihand joints using rqt sliders</description>
-  <maintainer email="user@todo.todo">user</maintainer>
+  <maintainer email="chiwayfpv@gmail.com">chiway-luo</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
