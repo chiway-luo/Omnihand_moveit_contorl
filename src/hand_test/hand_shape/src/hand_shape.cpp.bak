@@ -78,13 +78,13 @@ public:
                     shape_changed_ = true;//通知主线程有新请求
                     result_ready_ = false;//结果未准备好, 等主线程执行完成后再设置为 true
                 }
-                cv_.notify_one();//通知主线程有新请求
+                cv_.notify_one();//通知主线程有新请求 转到run_moveit_loop函数的主循环等待处理
                 RCLCPP_INFO(this->get_logger(), "收到手型请求: %s", request->shape_name.c_str());
 
                 // 等待主线程执行完成（最长等待 30 秒）
                 std::unique_lock<std::mutex> lock(mutex_);
                 if (cv_result_.wait_for(lock, std::chrono::seconds(30),
-                        [this]{ return result_ready_; })) {
+                        [this]{ return result_ready_; })) {//执行完成, 返回结果
                     response->success = result_success_;
                     response->message = result_message_;
                 } else {
@@ -93,7 +93,6 @@ public:
                 }
             }
         );
-
     }
 
     // 在 spin 线程启动后调用, 初始化 MoveGroupInterface 并进入主循环
@@ -131,15 +130,18 @@ public:
 private:
     rclcpp::Service<omnihand_node_msgs::srv::SetHandShape>::SharedPtr service_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;// MoveIt 规划接口
-    std::mutex mutex_;
+    std::mutex mutex_;//保护共享数据访问
     std::condition_variable cv_;// 通知主线程有新请求
     std::condition_variable cv_result_;// 通知 service 回调执行完成
+    //保护的变量
     std::string pending_shape_;//待执行的手型名称
     bool shape_changed_ = false;//是否有新的手型需要执行
     
     bool result_ready_ = false;//是否执行完成, service 回调可以返回结果
     bool result_success_ = false;//执行结果: 是否成功
     std::string result_message_;//执行结果: 额外信息,如错误原因等
+
+    
 
     // ---- 执行手型切换，返回 {成功?, 信息} ----
     std::pair<bool, std::string> execute_shape(const std::string & shape_name)
@@ -194,6 +196,8 @@ private:
         // 5. 执行
         auto exec_result = move_group_->execute(plan);
         if (exec_result == moveit::core::MoveItErrorCode::SUCCESS) {
+            // execute 返回成功后，等待2秒让机械手完成动作（可根据实际情况调整）
+            std::this_thread::sleep_for(std::chrono::seconds(2));
             RCLCPP_INFO(this->get_logger(), "手型 \"%s\" 执行完成 ✓", shape_name.c_str());
             return {true, "执行完成"};
         } else {

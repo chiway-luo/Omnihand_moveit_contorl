@@ -18,6 +18,9 @@
     使用:
         ros2 param set /hand_shape current_shape catch    # 切换到"抓握"手型
         ros2 param set /hand_shape current_shape default   # 切换到"张开"手型
+
+    增加: 电机堵转检测,如果堵转,则停止发送指令,
+        存储上n帧数据,回溯目标位置,发送回退指令,让机械手回退到未堵转位置,发送error日志,等待下一次请求
 */
 
 using namespace std::chrono_literals;
@@ -40,7 +43,9 @@ public:
         RCLCPP_INFO(this->get_logger(), "hand_shape 节点已创建");
         // --- 显式声明参数 (带描述) ---
         // current_shape
-        {
+        // 注意：automatically_declare_parameters_from_overrides(true) 已从 YAML 自动声明了该参数，
+        //       此处仅在未声明时补充声明（如直接 ros2 run 而未传 YAML 时的兜底默认值）
+        if (!this->has_parameter("current_shape")) {
             rcl_interfaces::msg::ParameterDescriptor desc;
             desc.description = "当前激活的手型名称, 修改后自动规划执行. "
                                "可选值: default, catch, full, pinch, point, joke 等 (见 hand_shape.yaml)";
@@ -93,6 +98,10 @@ public:
                 }
             }
         );
+
+        // sub_motor_states_ = this->create_subscription<
+
+
     }
 
     // 在 spin 线程启动后调用, 初始化 MoveGroupInterface 并进入主循环

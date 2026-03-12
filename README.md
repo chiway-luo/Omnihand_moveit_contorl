@@ -45,7 +45,10 @@ sudo chmod 666 /dev/ttyACM0
 - hand_test_bag 测试功能包,包含测试节点和launch文件(robot_state_publisher_gui控制灵巧手)
 
 - hand_shape 手型库功能包,包含不同手型的描述文件和moveit配置文件
-
+## 编译SDK
+```bash
+./build.sh -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./build/install -DBUILD_PYTHON_BINDING=ON -DBUILD_CPP_EXAMPLES=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+```
 ## 启动测试功能包
 ```bash
 ros2 launch hand_test_bag hand_test.launch.py
