@@ -135,14 +135,29 @@ private:
         double pinky_abad = msg->angles[8];
         double pinky_pip  = msg->angles[9];
 
-        //线性 mimic 计算被动关节（SDK 多项式最小二乘线性拟合）
-        double thumb_pip = 1.33 * thumb_mcp;
-        double thumb_dip = 1.42 * thumb_mcp;
-        double index_dip  = 1.29 * index_pip;
-        double middle_dip = 1.29 * middle_pip;
-        double ring_dip   = 1.29 * ring_pip;
-        double pinky_dip  = 1.29 * pinky_pip;
+        // SDK 多项式计算被动关节（kinematics_solver.cc: GetAllJointPos / CalculatePower）
+        // 线性近似（已弃用，仅作参考）：
+        // double thumb_pip = 1.33 * thumb_mcp;
+        // double thumb_dip = 1.42 * thumb_mcp;
+        // double index_dip  = 1.29 * index_pip;
+        // double middle_dip = 1.29 * middle_pip;
+        // double ring_dip   = 1.29 * ring_pip;
+        // double pinky_dip  = 1.29 * pinky_pip;
 
+        // SDK 多项式计算被动关节（更精确，已启用）待测试
+        // thumb_mcp2pip_poly_ = {0.0, 1.33}
+        double thumb_pip = 1.33 * thumb_mcp;
+        // thumb_mcp2dip_poly_ = {0.0, 1.846, -0.853, 0.280}
+        double thumb_dip = 1.846 * thumb_mcp
+                         - 0.853 * thumb_mcp * thumb_mcp
+                         + 0.280 * thumb_mcp * thumb_mcp * thumb_mcp;
+        // finger_pip2dip_poly_ = {0.0, 2.192, -1.425, 0.747, -0.167}
+        double index_dip  = 2.192 * index_pip  - 1.425 * index_pip  * index_pip  + 0.747 * index_pip  * index_pip  * index_pip  - 0.167 * index_pip  * index_pip  * index_pip  * index_pip;
+        double middle_dip = 2.192 * middle_pip - 1.425 * middle_pip * middle_pip + 0.747 * middle_pip * middle_pip * middle_pip - 0.167 * middle_pip * middle_pip * middle_pip * middle_pip;
+        double ring_dip   = 2.192 * ring_pip   - 1.425 * ring_pip   * ring_pip   + 0.747 * ring_pip   * ring_pip   * ring_pip   - 0.167 * ring_pip   * ring_pip   * ring_pip   * ring_pip;
+        double pinky_dip  = 2.192 * pinky_pip  - 1.425 * pinky_pip  * pinky_pip  + 0.747 * pinky_pip  * pinky_pip  * pinky_pip  - 0.167 * pinky_pip  * pinky_pip  * pinky_pip  * pinky_pip;
+
+        
         // 发布 /joint_states，供 MoveIt 和 rviz 使用
         static sensor_msgs::msg::JointState js;//发布给 MoveIt 的关节状态消息(只分配一次内存)
         if (js.name.empty()) {
