@@ -89,7 +89,7 @@ public:
                 // 等待主线程执行完成（最长等待 30 秒）
                 std::unique_lock<std::mutex> lock(mutex_);
                 if (cv_result_.wait_for(lock, std::chrono::seconds(30),
-                        [this]{ return result_ready_; })) {//执行完成, 返回结果
+                        [this]{ return result_ready_; })) {//如果在30秒内,result_ready_被设置为true, 则说明执行完成, 可以返回结果
                     response->success = result_success_;
                     response->message = result_message_;
                 } else {
@@ -120,19 +120,19 @@ public:
             std::string shape_name;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                cv_.wait(lock, [this]{ return shape_changed_ || !rclcpp::ok(); });
+                cv_.wait(lock, [this]{ return shape_changed_ || !rclcpp::ok(); });//等待有新请求或者节点关闭
                 if (!rclcpp::ok()) break;
                 shape_name = pending_shape_;
-                shape_changed_ = false;
+                shape_changed_ = false;//重置标志位,没有手型需要请求
             }
             auto [success, message] = execute_shape(shape_name);
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 result_success_ = success;
                 result_message_ = message;
-                result_ready_ = true;
+                result_ready_ = true;//执行完成
             }
-            cv_result_.notify_one();
+            cv_result_.notify_one();//通知服务回调执行结果已经准备好，可以返回给客户端(不保证moveit执行成功)
         }
     }
 

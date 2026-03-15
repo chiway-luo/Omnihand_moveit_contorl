@@ -266,6 +266,7 @@ private:
                 return;  // 驱动未连接，等待
         }
         // 门控机制：等待 fake controller 内部状态与真实手位置对齐后再开放转发
+        // 只在开头被触发
         //
         // 背景：mock_components/GenericSystem 初始状态为 0（initial_positions.yaml）。
         // 当第一条 set_shape 指令下发时，joint_trajectory_controller 会在轨迹执行前
