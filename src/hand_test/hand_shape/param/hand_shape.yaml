@@ -1,7 +1,6 @@
 hand_shape:
   ros__parameters:
-    # 当前激活的手型名称 —— 通过 ros2 param set 修改此值即可切换手型
-    # 用法: ros2 param set /hand_shape current_shape catch
+    # 默认初始化手型,但是在实现中,以手当前姿态为默认手型,插值后再输出控制
     current_shape: "default"
 
     # 预设手型定义 (单位: 度)
