@@ -26,14 +26,14 @@ class_doc中为公开课讲义文件，包含了每一章的内容介绍和代�
 </video>
 
 ## 系统要求
-- ubantu 22.04
+- ubuntu 22.04
 - ros2 humble
 - moveit2 humble
 
 ## 配置依赖
 安装moveit和ros_control相关的包
 ```bash
-sudo apt install ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-ros-control ros-${ROS_DISTRO}-ros-controllers
+sudo apt install ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-ros2-control ros-${ROS_DISTRO}-ros2-controllers
 ```
 ## 安装灵巧手
 > 我使用的为RS485串口驱动,如果使用can驱动,请参考SDK文档中关于can驱动的安装说明
