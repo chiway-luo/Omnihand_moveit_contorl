@@ -33,7 +33,14 @@ class_doc中为公开课讲义文件，包含了每一章的内容介绍和代�
 ## 配置依赖
 安装moveit和ros_control相关的包
 ```bash
+sudo apt update
+sudo apt install cmake
 sudo apt install ros-${ROS_DISTRO}-moveit ros-${ROS_DISTRO}-ros2-control ros-${ROS_DISTRO}-ros2-controllers
+sudo apt install python3.10-dev
+sudo apt install ros-${ROS_DISTRO}-joint-state-publisher-gui 
+sudo apt install ros-${ROS_DISTRO}-joint-state-publisher
+pip3 install build setuptools wheel
+
 ```
 ## 安装灵巧手
 > 我使用的为RS485串口驱动,如果使用can驱动,请参考SDK文档中关于can驱动的安装说明
@@ -79,5 +86,6 @@ ros2 param set /hand_shape current_shape joke     # 竖中指
 ```bash
 ros2 service call /hand_shape/set_shape omnihand_node_msgs/srv/SetHandShape "{shape_name: catch}"
 ```
+- 详细预定义手型见 [hand_shape.yaml](src/hand_test/hand_shape/param/hand_shape.yaml)
 
 > 我将退学在家,专心研究这个代码是怎么写的,感谢copilot && claude && gpt 的帮助,让我能在短时间内完成这个功能包的编写,并且在这个过程中学到了很多ROS2和moveit的知识,非常感谢他们的帮助和支持!
