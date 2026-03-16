@@ -155,9 +155,10 @@ private:
         // SDK 多项式计算被动关节（更精确，已启用）待测试
         // thumb_mcp2pip_poly_ = {0.0, 1.33}
         double thumb_pip = 1.33 * thumb_mcp;
-        // thumb_mcp2dip_poly_ = {0.0, 1.846, -0.853, 0.280}
+        // thumb_mcp2dip_poly_(左手) = {0.0, 1.846, +0.853, 0.280}
+        // 左手构造函数中对 [2] 取反：-(-0.853) = +0.853
         double thumb_dip = 1.846 * thumb_mcp
-                         - 0.853 * thumb_mcp * thumb_mcp
+                         + 0.853 * thumb_mcp * thumb_mcp
                          + 0.280 * thumb_mcp * thumb_mcp * thumb_mcp;
         // finger_pip2dip_poly_ = {0.0, 2.192, -1.425, 0.747, -0.167}
         double index_dip  = 2.192 * index_pip  - 1.425 * index_pip  * index_pip  + 0.747 * index_pip  * index_pip  * index_pip  - 0.167 * index_pip  * index_pip  * index_pip  * index_pip;

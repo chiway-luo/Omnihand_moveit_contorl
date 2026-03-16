@@ -110,7 +110,7 @@ public:
         // MoveGroupInterface 构造时需要节点正在 spin, 所以放在这里而不是构造函数
         RCLCPP_INFO(this->get_logger(), "正在连接 MoveGroupInterface (规划组: hand) ...");
         move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(
-            shared_from_this(), "hand");
+            shared_from_this(), "hand");//连接 MoveGroupInterface, 参数为当前节点和规划组名称(需与 moveit 配置一致)
         move_group_->setMaxVelocityScalingFactor(1.0);// 限制速度, 避免机械手动作过快
         move_group_->setMaxAccelerationScalingFactor(1.0);// 限制加速度, 避免机械手动作过快
         RCLCPP_INFO(this->get_logger(), "MoveGroupInterface 连接成功");
