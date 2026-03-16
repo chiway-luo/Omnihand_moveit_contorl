@@ -1,5 +1,8 @@
 <!-- # 基于moveit的路径规划实现自动规划手指移动的功能 -->
 # 基于 ROS2 + MoveIt2 搭建灵巧手手型规划与执行系统
+
+官方文档 [Omnihand-O10](https://www.zhiyuan-robot.com/DOCS/OS/Omnihand-O10)
+
 > 手型请求 -> 角度预设读取 -> MoveIt 规划 -> 执行结果反馈 -> 底层驱动下发
 ---
 

@@ -41,12 +41,6 @@ OmniHand 灵动款 2025 是一款紧凑型高自由度交互灵巧手，具有`1
              -DBUILD_PYTHON_BINDING=ON \
              -DBUILD_CPP_EXAMPLES=OFF \
 ```
-```bash
-    ./build.sh  -DCMAKE_BUILD_TYPE=Release \ 
-                -DCMAKE_INSTALL_PREFIX=./build/install \ -DBUILD_PYTHON_BINDING=ON -DBUILD_CPP_EXAMPLES=OFF \ -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-
-    ./build.sh -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./build/install -DBUILD_PYTHON_BINDING=ON -DBUILD_CPP_EXAMPLES=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-```
 
 DBUILD_PYTHON_BINDING 选项用于构建 Python 绑定模块，DBUILD_CPP_EXAMPLES 选项用于构建 C++ 示例代码。
 
