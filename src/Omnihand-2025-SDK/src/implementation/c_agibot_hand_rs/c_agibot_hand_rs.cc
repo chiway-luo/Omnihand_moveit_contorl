@@ -29,8 +29,9 @@ struct convert<AgibotHandRsO10::Options> {
 };
 }  // namespace YAML
 
-AgibotHandRsO10::AgibotHandRsO10() {
+AgibotHandRsO10::AgibotHandRsO10(const std::string& uart_port) {
   Options options;
+  options.uart_port = uart_port;
 
   handrs485_interface_ =
       std::make_unique<UartRs485Interface>(options.uart_port, options.uart_baudrate);

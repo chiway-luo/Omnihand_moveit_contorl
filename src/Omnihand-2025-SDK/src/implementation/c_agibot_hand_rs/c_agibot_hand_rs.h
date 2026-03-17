@@ -23,7 +23,7 @@ class AGIBOT_EXPORT AgibotHandRsO10 : public AgibotHandO10 {
   };
 
  public:
-  explicit AgibotHandRsO10();
+  explicit AgibotHandRsO10(const std::string& uart_port = "/dev/ttyACM0");
 
   ~AgibotHandRsO10() override = default;
 

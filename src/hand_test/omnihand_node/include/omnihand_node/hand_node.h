@@ -31,7 +31,8 @@ namespace omnihand {
 
 class OmniHandProNode : public rclcpp::Node {
  public:
-  OmniHandProNode(uint8_t device_id, uint8_t canfd_id, EHandType hand_type);
+  OmniHandProNode(uint8_t device_id, uint8_t canfd_id, EHandType hand_type,
+                   const std::string& uart_port = "/dev/ttyACM0");
   ~OmniHandProNode();
 
  private:

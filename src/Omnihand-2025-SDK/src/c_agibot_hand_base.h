@@ -38,7 +38,8 @@ class AGIBOT_EXPORT AgibotHandO10 {
   static std::unique_ptr<AgibotHandO10> createHand(
       unsigned char device_id,
       unsigned char canfd_id,
-      EHandType hand_type);
+      EHandType hand_type,
+      const std::string& uart_port = "/dev/ttyACM0");
   /**
    * @brief 构造函数
    * @param device_id 设备Id

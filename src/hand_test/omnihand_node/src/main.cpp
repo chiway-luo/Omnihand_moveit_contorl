@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
   // 创建多个节点
-  auto left_hand_node = std::make_shared<omnihand::OmniHandProNode>(0, 0, EHandType::eLeft);
+  auto left_hand_node = std::make_shared<omnihand::OmniHandProNode>(0, 0, EHandType::eLeft, "/dev/omnihand_left");
 //   auto right_hand_node = std::make_shared<omnihand::OmniHandProNode>(2, 1, EHandType::eRight);
 
   // 创建多线程执行器

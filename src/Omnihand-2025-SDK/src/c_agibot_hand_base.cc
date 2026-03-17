@@ -36,10 +36,11 @@ struct convert<AgibotHandO10::HardwareConf> {
 std::unique_ptr<AgibotHandO10> AgibotHandO10::createHand(
     unsigned char device_id,
     unsigned char canfd_id,
-    EHandType hand_type) {
+    EHandType hand_type,
+    const std::string& uart_port) {
   std::unique_ptr<AgibotHandO10> hand;
 
-  hand = std::make_unique<AgibotHandRsO10>();
+  hand = std::make_unique<AgibotHandRsO10>(uart_port);
 
   hand->Reset(device_id, hand_type);
 
