@@ -50,6 +50,9 @@ pip3 install build setuptools wheel
 ```
 sudo chmod 666 /dev/ttyACM0
 ```
+## 设置端口映射
+参阅文档
+[端口映射步骤](./端口规则映射.md)
 ## 功能包说明
 - omnihand_node 灵巧手底层驱动功能包,提供底层通信接口
 
