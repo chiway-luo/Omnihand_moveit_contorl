@@ -13,37 +13,31 @@ find_package(rosidl_typesupport_cpp REQUIRED)
 find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(omnihand_node_msgs REQUIRED)
-# find_package(omni_hand_driver REQUIRED)
 
 # #############桥接sdk############
-# SDK 预构建安装路径
-set(OMNIHAND_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../Omnihand-2025-SDK/build/install")
 
 # 创建 IMPORTED 库目标
 add_library(omnihand2025 SHARED IMPORTED)
 set_target_properties(omnihand2025 PROPERTIES
-  IMPORTED_LOCATION "${OMNIHAND_SDK_DIR}/lib/libomnihand2025.so"
-  INTERFACE_INCLUDE_DIRECTORIES "${OMNIHAND_SDK_DIR}/include"
+  # 指向当前包下的 lib 目录
+  IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/libomnihand2025.so"
+  # 指向当前包下的 include 目录
+  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-# 安装 SDK 头文件
-install(DIRECTORY ${OMNIHAND_SDK_DIR}/include/
-  DESTINATION include/omnihand_node)
+# 安装 include 目录
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+  DESTINATION include)
 
-# 安装 SDK 共享库
+# 安装本地复制的 SDK 共享库
 install(FILES
-  ${OMNIHAND_SDK_DIR}/lib/libomnihand2025.so
-  ${OMNIHAND_SDK_DIR}/lib/libusbcanfd.so
+  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libomnihand2025.so
+  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libusbcanfd.so
   DESTINATION lib)
 
 # 安装 libusbcanfd 的版本号符号链接
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
   libusbcanfd.so \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/lib/libusbcanfd.so.1.0.10)")
-
-
-# 导出 CMake 配置，让下游包通过 find_package(omnihand_node) 找到库
-ament_export_include_directories(include/omnihand_node)
-ament_export_libraries(omnihand2025 usbcanfd)
 
 ####################################
 

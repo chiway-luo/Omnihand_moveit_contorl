@@ -68,9 +68,24 @@ sudo chmod 666 /dev/ttyACM0
 
 - hand_shape 手型库功能包,包含不同手型的描述文件和moveit配置文件
 ## 编译SDK
+1. 确认cmake版本满足要求(>=3.24),如果不满足,请执行以下命令安装cmake
+```bash
+pip install -U "cmake>=3.24,<4"
+```
+2. 执行构建命令
 ```bash
 ./build.sh -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./build/install -DBUILD_PYTHON_BINDING=ON -DBUILD_CPP_EXAMPLES=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 ```
+
+## 配置SDK提供的ros2功能包
+1. 创建功能包
+```bash
+ros2 pkg create --build-type ament_cmake omnihand_node
+```
+2. 将SDK编译后的lib产物复制进功能包中 [src/Omnihand-2025-SDK/build/install/lib](src/Omnihand-2025-SDK/build/install/lib)
+
+3. 将SDK的include文件夹复制进功能包中 [src/Omnihand-2025-SDK/build/install/include](src/Omnihand-2025-SDK/build/install/include)
+
 ## 启动测试功能包
 ```bash
 ros2 launch hand_test_bag hand_test.launch.py
