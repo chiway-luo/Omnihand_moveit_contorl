@@ -3,6 +3,8 @@
 
 官方文档 [Omnihand-O10](https://www.zhiyuan-robot.com/DOCS/OS/Omnihand-O10)
 
+<span style="color:red;">该版本提交未经过实机测试,如出现问题请回退至 f63809e87e863c4c0fc2955ce8df8e52588f20be 进行测试,后续会继续完善功能包并进行实机测试</span>
+
 > 手型请求 -> 角度预设读取 -> MoveIt 规划 -> 执行结果反馈 -> 底层驱动下发
 ---
 
