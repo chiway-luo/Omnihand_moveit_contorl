@@ -3,8 +3,6 @@
 
 官方文档 [Omnihand-O10](https://www.zhiyuan-robot.com/DOCS/OS/Omnihand-O10)
 
-<span style="color:red;">该版本提交未经过实机测试,如出现问题请回退至 f63809e87e863c4c0fc2955ce8df8e52588f20be 进行测试,后续会继续完善功能包并进行实机测试</span>
-
 > 手型请求 -> 角度预设读取 -> MoveIt 规划 -> 执行结果反馈 -> 底层驱动下发
 ---
 
@@ -15,7 +13,7 @@
 > 通过配置不同手型,发送请求到服务端,调用moveit的路径规划算法,实现自动规划手指移动的功能,并通过底层驱动接口控制灵巧手执行相应动作。
 
 - 注意事项
-> 该实现中,将moveit在rviz的本地插件(目标姿态)设置为透明,仅支持通过发送服务请求的方式进行路径规划,不支持在rviz中直接设置目标姿态进行路径规划(修改后可以取消此限制)。
+> RViz 已启用目标状态半透明预览（Goal State Alpha 为 0.5，Start State Alpha 为 0.2）。可使用 MotionPlanning 的关节滑块设置目标并规划，也可通过服务请求规划预设手型。`hand` 是由五个手指子组组成的关节空间规划组；RViz 提示 `No active joints or end effectors found for group 'hand'` 仅表示没有 6D IK 交互标记，不表示该组不能规划。
 
 
 ---
@@ -48,10 +46,7 @@ pip3 install build setuptools wheel
 
 ```
 ## 安装灵巧手
-> 我使用的为RS485串口驱动,如果使用can驱动,请参考SDK文档中关于can驱动的安装说明
-```
-sudo chmod 666 /dev/ttyACM0
-```
+> 当前已验证的 O10 连接方式为 USB-C 虚拟串口（USB CDC），不是外置 RS485 转接器。节点固定使用 udev 映射 `/dev/omnihand_left`；规则中的 `MODE="0666"` 生效后，无需每次对 `/dev/ttyACM0` 执行 `chmod`。
 ## 设置端口映射
 参阅文档
 [端口映射步骤](./端口规则映射.md)
@@ -66,40 +61,46 @@ sudo chmod 666 /dev/ttyACM0
 
 - hand_control 桥接moveit和底层驱动的控制节点
 
-- hand_test_bag 测试功能包,包含测试节点和launch文件(robot_state_publisher_gui控制灵巧手)
+- hand_test_bag 独立底层测试功能包,包含测试节点和launch文件(robot_state_publisher_gui控制灵巧手)。它会启动自己的驱动节点，禁止与 hand_control 同时启动
 
 - hand_shape 手型库功能包,包含不同手型的描述文件和moveit配置文件
-## 编译SDK
-1. 确认cmake版本满足要求(>=3.24),如果不满足,请执行以下命令安装cmake
+## SDK 集成与工作区构建
+
+当前工程使用 AgiBot OmniHand SDK v1.1.8。SDK 源码目录 `src/Omnihand-2025-SDK` 仅用于版本溯源并带有 `COLCON_IGNORE`，**禁止在本工作区编译 SDK**。所需头文件和预编译共享库已随 `omnihand_node` 放入 `include/`、`lib/`，安装后由节点通过 `$ORIGIN` 加载，不依赖 SDK 的 `build/` 或 `install/` 产物。
+
 ```bash
-pip install -U "cmake>=3.24,<4"
-```
-2. 执行构建命令
-```bash
-./build.sh -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./build/install -DBUILD_PYTHON_BINDING=ON -DBUILD_CPP_EXAMPLES=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cd ~/work_temp/agibot_hand/ws00_test_hand
+source /opt/ros/humble/setup.bash
+colcon list --names-only
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+source install/setup.bash
 ```
 
-## 配置SDK提供的ros2功能包
-1. 创建功能包
-```bash
-ros2 pkg create --build-type ament_cmake omnihand_node
-```
-2. 将SDK编译后的lib产物复制进功能包中 [src/Omnihand-2025-SDK/build/install/lib](src/Omnihand-2025-SDK/build/install/lib)
-
-3. 将SDK的include文件夹复制进功能包中 [src/Omnihand-2025-SDK/build/install/include](src/Omnihand-2025-SDK/build/install/include)
+`colcon list --names-only` 应只列出 8 个 ROS 2 功能包，不应出现 SDK。
 
 ## 启动测试功能包
 ```bash
 ros2 launch hand_test_bag hand_test.launch.py
 ```
-## 启动moveit配置助手
+
+> 该入口仅用于独立直连硬件测试，会占用 `/dev/omnihand_left` 并直接发布电机指令。运行前必须停止 MoveIt 控制栈；不要与下面的 `hand_control` 入口同时运行。
+## 启动moveit配置助手(仅供测试使用)
 ```bash
 ros2 launch moveit_setup_assistant setup_assistant.launch.py
 ```
+
+配置过程参见[moveit官方文档](https://moveit.picknik.ai/main/doc/examples/setup_assistant/setup_assistant_tutorial.html)
+
 ## 启动moveit控制节点(实现节点)
 ```bash
+cd ~/work_temp/agibot_hand/ws00_test_hand
+source /opt/ros/humble/setup.bash
+source install/setup.bash
 ros2 launch hand_control hand_control.launch.py
 ```
+
+MoveIt 规划、RViz 预览和真实手执行统一使用上述唯一入口。启动前可用 `ros2 pkg prefix hand_moveit` 和 `ros2 pkg prefix omnihand_node` 确认二者都来自当前工作区的 `install/`。
+
 ## 规划不同手型
 <!-- ```bash
 ros2 param set /hand_shape current_shape default  # 默认手型
