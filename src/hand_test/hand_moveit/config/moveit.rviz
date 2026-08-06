@@ -20,8 +20,8 @@ Visualization Manager:
         State Display Time: 0.05 s
         Trajectory Topic: display_planned_path
       Planning Request:
-        Goal State Alpha: 0
-        Start State Alpha: 0
+        Goal State Alpha: 0.5
+        Start State Alpha: 0.2
       Planning Scene Topic: monitored_planning_scene
       Robot Description: robot_description
       Scene Geometry:

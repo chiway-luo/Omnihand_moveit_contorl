@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.13)
 project(omnihand_node)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -14,32 +14,38 @@ find_package(rosidl_typesupport_fastrtps_cpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(omnihand_node_msgs REQUIRED)
 
-# #############桥接sdk############
+# Use the official prebuilt SDK copied directly into this ROS package.  The SDK
+# is never built here, and no path outside omnihand_node is required.
+set(OMNIHAND_SDK_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(OMNIHAND_SDK_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
-# 创建 IMPORTED 库目标
-add_library(omnihand2025 SHARED IMPORTED)
-set_target_properties(omnihand2025 PROPERTIES
-  # 指向当前包下的 lib 目录
-  IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/lib/libomnihand2025.so"
-  # 指向当前包下的 include 目录
-  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include"
-)
+foreach(required_sdk_file
+    "libomnihand.so"
+    "libomnihand.so.1"
+    "libomnihand.so.1.1.8"
+    "libusbcanfd.so"
+    "libusbcanfd.so.1"
+    "libusbcanfd.so.1.0.12"
+    "libCANFDNET.so"
+    "libcanbus.so"
+    "libusb-1.0.so"
+    "libusb-1.0.so.0"
+    "libusb-1.0.so.0.3.0")
+  if(NOT EXISTS "${OMNIHAND_SDK_LIB_DIR}/${required_sdk_file}")
+    message(FATAL_ERROR
+      "Missing packaged OmniHand SDK library: ${OMNIHAND_SDK_LIB_DIR}/${required_sdk_file}")
+  endif()
+endforeach()
 
-# 安装 include 目录
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-  DESTINATION include)
+if(NOT EXISTS "${OMNIHAND_SDK_INCLUDE_DIR}/omnihand/omnihand_2025.h")
+  message(FATAL_ERROR
+    "Missing packaged OmniHand SDK headers: ${OMNIHAND_SDK_INCLUDE_DIR}/omnihand")
+endif()
 
-# 安装本地复制的 SDK 共享库
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libomnihand2025.so
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libusbcanfd.so
-  DESTINATION lib)
-
-# 安装 libusbcanfd 的版本号符号链接
-install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
-  libusbcanfd.so \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/lib/libusbcanfd.so.1.0.10)")
-
-####################################
+add_library(omnihand_sdk SHARED IMPORTED)
+set_target_properties(omnihand_sdk PROPERTIES
+  IMPORTED_LOCATION "${OMNIHAND_SDK_LIB_DIR}/libomnihand.so"
+  INTERFACE_INCLUDE_DIRECTORIES "${OMNIHAND_SDK_INCLUDE_DIR}")
 
 add_executable(hand_node src/main.cpp src/hand_node.cpp)
 
@@ -62,15 +68,46 @@ ament_target_dependencies(
 )
 
 
-# 链接 SDK 库（同时传递 INTERFACE_INCLUDE_DIRECTORIES）
-target_link_libraries(hand_node omnihand2025)
+# The imported target also supplies the SDK include directory.  Keep
+# the plain signature because ament_target_dependencies() uses it on Humble.
+target_link_libraries(hand_node omnihand_sdk)
+
+# Build against the package-local SDK.  At install time, keep the complete SDK
+# runtime in a node-private directory so its bundled libusb cannot shadow the
+# system library for unrelated ROS processes.  Old-style DT_RPATH is intentional
+# here: it also covers libusbcanfd's indirect dependency on the bundled libusb.
+target_link_options(hand_node PRIVATE "LINKER:--disable-new-dtags")
+set_target_properties(hand_node PROPERTIES
+  BUILD_RPATH "${OMNIHAND_SDK_LIB_DIR}"
+  INSTALL_RPATH "\$ORIGIN")
 
 install(TARGETS hand_node
   DESTINATION lib/${PROJECT_NAME})
 
+# Preserve the complete official runtime closure and its versioned symlinks.
+install(DIRECTORY "${OMNIHAND_SDK_LIB_DIR}/"
+  DESTINATION lib/${PROJECT_NAME}
+  USE_SOURCE_PERMISSIONS)
+
+install(DIRECTORY "${OMNIHAND_SDK_INCLUDE_DIR}/"
+  DESTINATION include)
+
+install(FILES
+  "${CMAKE_CURRENT_SOURCE_DIR}/sdk/VERSION"
+  "${CMAKE_CURRENT_SOURCE_DIR}/sdk/README.upstream.md"
+  "${CMAKE_CURRENT_SOURCE_DIR}/sdk/UPSTREAM.md"
+  DESTINATION share/${PROJECT_NAME}/sdk)
+
+ament_export_include_directories(include)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  # The packaged SDK headers are immutable third-party code and keep upstream style.
+  file(GLOB_RECURSE OMNIHAND_SDK_HEADER_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/omnihand/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/omnihand_server/*.h")
+  set(AMENT_LINT_AUTO_FILE_EXCLUDE ${OMNIHAND_SDK_HEADER_FILES})
   # the following line skips the linter which checks for copyrights
   # comment the line when a copyright and license is added to all source files
   set(ament_cmake_copyright_FOUND TRUE)

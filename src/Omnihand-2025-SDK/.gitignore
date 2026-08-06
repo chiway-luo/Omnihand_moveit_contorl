@@ -1,4 +1,5 @@
 # Build and IDE
+.github/
 .vscode/
 .cache/
 .marscode/
@@ -7,3 +8,9 @@ _deps/
 build/
 cmake-build*/
 compile_commands.json
+**/__pycache__/
+*.pyc
+
+# This ROS 2 workspace publishes Linux SDK payloads only. The upstream Windows
+# bundle is outside the Ubuntu target and did not pass the repository credential scan.
+windows/

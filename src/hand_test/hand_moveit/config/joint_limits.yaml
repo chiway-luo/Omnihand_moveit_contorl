@@ -9,51 +9,81 @@ default_acceleration_scaling_factor: 0.1
 # Joint limits can be turned off with [has_velocity_limits, has_acceleration_limits]
 joint_limits:
   L_index_abad_joint:
+    has_position_limits: true
+    min_position: 0.0
+    max_position: 0.16
     has_velocity_limits: true
     max_velocity: 0.16400000000000001
     has_acceleration_limits: false
     max_acceleration: 0
   L_index_pip_joint:
+    has_position_limits: true
+    min_position: 0.0
+    max_position: 1.48
     has_velocity_limits: true
     max_velocity: 0.308
     has_acceleration_limits: false
     max_acceleration: 0
   L_middle_pip_joint:
+    has_position_limits: true
+    min_position: 0.0
+    max_position: 1.48
     has_velocity_limits: true
     max_velocity: 0.308
     has_acceleration_limits: false
     max_acceleration: 0
   L_pinky_abad_joint:
+    has_position_limits: true
+    min_position: -0.19
+    max_position: 0.0
     has_velocity_limits: true
     max_velocity: 0.16400000000000001
     has_acceleration_limits: false
     max_acceleration: 0
   L_pinky_pip_joint:
+    has_position_limits: true
+    min_position: 0.0
+    max_position: 1.48
     has_velocity_limits: true
     max_velocity: 0.308
     has_acceleration_limits: false
     max_acceleration: 0
   L_ring_abad_joint:
+    has_position_limits: true
+    min_position: -0.17
+    max_position: 0.0
     has_velocity_limits: true
     max_velocity: 0.16400000000000001
     has_acceleration_limits: false
     max_acceleration: 0
   L_ring_pip_joint:
+    has_position_limits: true
+    min_position: 0.0
+    max_position: 1.48
     has_velocity_limits: true
     max_velocity: 0.308
     has_acceleration_limits: false
     max_acceleration: 0
   L_thumb_abad_joint:
+    has_position_limits: true
+    min_position: -0.05
+    max_position: 1.64
     has_velocity_limits: true
     max_velocity: 0.16400000000000001
     has_acceleration_limits: false
     max_acceleration: 0
   L_thumb_mcp_joint:
+    has_position_limits: true
+    min_position: -0.8416
+    max_position: 0.0
     has_velocity_limits: true
     max_velocity: 0.308
     has_acceleration_limits: false
     max_acceleration: 0
   L_thumb_roll_joint:
+    has_position_limits: true
+    min_position: -1.12
+    max_position: 0.03
     has_velocity_limits: true
     max_velocity: 0.16400000000000001
     has_acceleration_limits: false
